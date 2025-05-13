@@ -1,10 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { KafkaService } from './kafka/kafka.service';
+import { UploadModule } from './upload/upload.module';
+import { QuestionModule } from './question/question.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    UploadModule, 
+    QuestionModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+  ],
+  providers: [KafkaService],
 })
 export class AppModule {}
