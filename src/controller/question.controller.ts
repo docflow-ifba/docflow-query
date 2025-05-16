@@ -1,13 +1,12 @@
 import { Controller, Post, Body } from '@nestjs/common';
-import { QuestionService } from './question.service';
-import { QuestionDto } from './dto/question.dto';
+import { QuestionService } from '../service/question.service';
 
-@Controller('question')
+@Controller('v1/questions')
 export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
   @Post()
-  async ask(@Body() data: QuestionDto) {
+  async ask(@Body() data: { question: string }) {
     const answer = await this.questionService.handleQuestion(data.question);
     return { answer };
   }
