@@ -12,6 +12,7 @@ import { Organization } from './entity/organization.entity';
 import { User } from './entity/user.entity';
 import { OrganizationService } from './service/organization.service';
 import { OrganizationController } from './controller/organization.controller';
+import { NoticeTable } from './entity/notice-table.entity';
 
 @Module({
   imports: [
@@ -21,10 +22,10 @@ import { OrganizationController } from './controller/organization.controller';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'db.sqlite',
-      entities: [User, Organization, Notice, Table],
+      entities: [User, Organization, Notice, Table, NoticeTable],
       synchronize: true, // apenas para dev, usar migrations em produção
     }),
-    TypeOrmModule.forFeature([User, Organization, Notice, Table]),
+    TypeOrmModule.forFeature([User, Organization, Notice, Table, NoticeTable]),
   ],
   providers: [KafkaService, QuestionService, NoticeService, OrganizationService],
   controllers: [QuestionController, NoticeController, OrganizationController],

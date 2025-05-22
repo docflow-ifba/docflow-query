@@ -22,19 +22,16 @@ export class Notice {
   @Column({ type: 'date', name: 'deadline' })
   deadline: Date;
 
-  @Column({ name: 'organization_id' })
-  organizationId: string;
-
   @Column({ default: 0, name: 'views' })
   views: number;
 
-  @Column({ type: 'text', name: 'content_markdown' })
+  @Column({ type: 'text', name: 'content_markdown', nullable: true })
   contentMarkdown: string;
 
-  @Column({ type: 'text', name: 'clean_markdown' })
+  @Column({ type: 'text', name: 'clean_markdown', nullable: true })
   cleanMarkdown: string;
 
-  @Column({ type: 'text', name: 'pdf_base64', nullable: true })
+  @Column({ type: 'text', name: 'pdf_base64' })
   pdfBase64: string;
 
   @Column({

@@ -6,7 +6,6 @@ export class NoticeResponseDTO {
   docflowNoticeId: string;
   title: string;
   deadline: Date;
-  organizationId: string;
   views: number;
   status: NoticeStatus;
   organization: Organization;

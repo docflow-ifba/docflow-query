@@ -12,9 +12,6 @@ export class NoticeTable {
   @PrimaryGeneratedColumn('uuid', { name: 'table_id' })
   tableId: string;
 
-  @Column({ name: 'notice_id' })
-  noticeId: string;
-
   @ManyToOne(() => Notice)
   @JoinColumn({ name: 'notice_id' })
   notice: Notice;

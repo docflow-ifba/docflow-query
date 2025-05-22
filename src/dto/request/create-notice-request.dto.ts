@@ -1,4 +1,7 @@
-import { IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDefined, IsString, ValidateNested } from 'class-validator';
+import { Organization } from 'src/entity/organization.entity';
+import { CreateOrganizationDTO } from './create-organization-request.dto';
 
 export class CreateNoticeRequestDTO {
   @IsString()
@@ -10,6 +13,8 @@ export class CreateNoticeRequestDTO {
   @IsString()
   pdfBase64: string;
 
-  @IsString()
-  organization_id: string;
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CreateOrganizationDTO)
+  organization: CreateOrganizationDTO;
 }

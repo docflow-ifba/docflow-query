@@ -13,6 +13,9 @@ import { KafkaService } from './kafka.service';
 import { uuidv7 } from 'uuidv7';
 import { CreateNoticeMessageDTO } from 'src/dto/request/create-notice-message.dto';
 import { NoticeResponseDTO } from 'src/dto/response/notice-response.dto';
+import { EmbedNoticeResponseDTO } from 'src/dto/response/embed-notice-response.dto';
+import { NoticeStatus } from 'src/enum/notice-status.enum';
+import { NoticeTable } from 'src/entity/notice-table.entity';
 
 @Injectable()
 export class NoticeService {
@@ -21,25 +24,52 @@ export class NoticeService {
   constructor(
     @InjectRepository(Notice)
     private readonly repository: Repository<Notice>,
+    @InjectRepository(NoticeTable)
+    private readonly tableRepository: Repository<NoticeTable>,
     private readonly kafkaService: KafkaService,
     private readonly configService: ConfigService,
   ) {}
 
-  async embed(docflowNoticeId: string): Promise<void> {
+  async handleEmbedResult(payload: EmbedNoticeResponseDTO) {
     try {
-      const TOPIC = this.configService.get<string>('KAFKA_TOPIC');
-      const notice = await this.getByDocflowNoticeId(docflowNoticeId);
+      const notice = await this.getByDocflowNoticeId(payload.docflow_notice_id);
+      notice.contentMarkdown = payload.content_md;
+      notice.cleanMarkdown = payload.clean_md;
+      notice.status = NoticeStatus.EMBEDDED;
+
+      if(payload.tables_md && payload.tables_md.length > 0) {
+        for (const table of payload.tables_md) {
+          const tableEntity = this.tableRepository.create({
+            content: table,
+            notice,
+          });
+          await this.tableRepository.save(tableEntity);
+        }
+        this.logger.log(`Tables saved for notice: ${notice.noticeId}`);
+      }
+
+      await this.repository.save(notice);
+      this.logger.log(`Notice updated with PDF: ${notice.noticeId}`);
+    } catch (error) {
+      this.logger.error(`Failed to handle embed result: ${payload.docflow_notice_id}`, error.stack);
+      throw new InternalServerErrorException('Failed to handle embed result');
+    }
+  }
+
+  async embed(id: string): Promise<void> {
+    try {
+      const TOPIC = this.configService.get<string>('KAFKA_EMBED_TOPIC');
+      const notice = await this.getById(id);
 
       const message: CreateNoticeMessageDTO = {
-        title: notice.title,
-        pdf_base64: notice.pdfBase64,
-        docflowNoticeId,
+        pdf_base64: notice.pdfBase64.split(',')[1],
+        docflow_notice_id: notice.docflowNoticeId,
       };
 
       this.logger.log(`Sending message to Kafka (topic: ${TOPIC})`);
       await this.kafkaService.sendMessage<CreateNoticeMessageDTO>(TOPIC, message);
     } catch (error) {
-      this.logger.error(`Failed to embed notice: ${docflowNoticeId}`, error.stack);
+      this.logger.error(`Failed to embed notice: ${id}`, error.stack);
       throw new InternalServerErrorException('Failed to embed notice');
     }
   }
@@ -47,11 +77,11 @@ export class NoticeService {
   async create(data: CreateNoticeRequestDTO): Promise<Notice> {
     try {
       const DOCFLOW_NOTICE_ID = uuidv7();
-      const noticeEntity = this.repository.create({
-        ...data,
-        docflowNoticeId: DOCFLOW_NOTICE_ID,
+      const noticeEntity = this.repository.create({ 
+        ...data, 
+        organization: data.organization,
+        docflowNoticeId: DOCFLOW_NOTICE_ID 
       });
-
       const savedNotice = await this.repository.save(noticeEntity);
       this.logger.log(`Notice created with ID: ${savedNotice.noticeId}`);
       return savedNotice;
@@ -102,17 +132,19 @@ export class NoticeService {
           'notice.docflowNoticeId',
           'notice.title',
           'notice.deadline',
-          'notice.organizationId',
           'notice.views',
           'notice.status',
-        ]);
+          'organization',
+        ])
 
       if (filters.status) {
         qb.andWhere('notice.status = :status', { status: filters.status });
       }
 
       if (filters.organizationId) {
-        qb.andWhere('notice.organizationId = :organizationId', { organizationId: filters.organizationId });
+        qb.andWhere('organization.organizationId = :organizationId', {
+          organizationId: filters.organizationId,
+        });
       }
 
       if (filters.title) {
