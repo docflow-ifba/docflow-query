@@ -7,7 +7,8 @@ import {
   Param,
   Post,
   Put,
-  Query
+  Query,
+  UseGuards
 } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { EmbedNoticeResponseDTO } from 'src/dto/response/embed-notice-response.dto';
@@ -15,6 +16,9 @@ import { NoticeResponseDTO } from 'src/dto/response/notice-response.dto';
 import { CreateNoticeRequestDTO } from '../dto/request/create-notice-request.dto';
 import { Notice } from '../entity/notice.entity';
 import { NoticeService } from '../service/notice.service';
+import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
+import { Roles } from 'src/decorator/roles.decorator';
+import { UserRole } from 'src/enum/user-role.enum';
 
 @Controller('v1/notices')
 export class NoticeController {
@@ -34,8 +38,10 @@ export class NoticeController {
       throw error;
     }
   }
-
+  
   @Post("embed/:id")
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
   async embed(@Param('id') id: string): Promise<void> {
     try {
       this.logger.log(`Fetching notice with id: ${id}`);
@@ -47,6 +53,8 @@ export class NoticeController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
   async create(@Body() body: CreateNoticeRequestDTO): Promise<Notice> {
     this.logger.log(`Creating notice with title: ${body.title}`);
     try {
@@ -61,6 +69,8 @@ export class NoticeController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
   async getById(@Param('id') id: string): Promise<Notice> {
     this.logger.log(`Fetching notice with ID: ${id}`);
     try {
@@ -72,6 +82,8 @@ export class NoticeController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   async find(
     @Query('status') status?: string,
     @Query('title') title?: string,
@@ -82,6 +94,8 @@ export class NoticeController {
   }
 
   @Put(':id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   async update(@Param('id') id: string, @Body() updateData: Partial<Notice>): Promise<Notice> {
     this.logger.log(`Updating notice with ID: ${id}`);
     try {
@@ -95,6 +109,8 @@ export class NoticeController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   async delete(@Param('id') id: string): Promise<void> {
     this.logger.log(`Deleting notice with ID: ${id}`);
     try {

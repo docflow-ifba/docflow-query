@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Query, Logger } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Logger, UseGuards } from '@nestjs/common';
 import { CreateOrganizationDTO } from 'src/dto/request/create-organization-request.dto';
 import { Organization } from 'src/entity/organization.entity';
+import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { OrganizationService } from 'src/service/organization.service';
 
 @Controller('v1/organizations')
@@ -10,6 +11,7 @@ export class OrganizationController {
   constructor(private readonly service: OrganizationService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   async find(@Query('query') query: string): Promise<Organization[]> {
     this.logger.log(`Searching for organizations with query: ${query}`);
     try {
@@ -21,6 +23,7 @@ export class OrganizationController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   async create(@Body() dto: CreateOrganizationDTO): Promise<Organization> {
     this.logger.log(`Creating organization with name: ${dto.name}`);
     try {

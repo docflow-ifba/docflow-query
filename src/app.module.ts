@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { KafkaService } from './service/kafka.service';
-import { ConfigModule } from '@nestjs/config';
-import { QuestionService } from './service/question.service';
-import { QuestionController } from './controller/question.controller';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConversationService } from './service/conversation.service';
+import { ConversationController } from './controller/conversation.controller';
 import { NoticeService } from './service/notice.service';
 import { NoticeController } from './controller/notice.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -13,21 +13,40 @@ import { User } from './entity/user.entity';
 import { OrganizationService } from './service/organization.service';
 import { OrganizationController } from './controller/organization.controller';
 import { NoticeTable } from './entity/notice-table.entity';
+import { Conversation } from './entity/conversation.entity';
+import { Message } from './entity/message.entity';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { AuthController } from './controller/auth.controller';
+import { AuthService } from './service/auth.service';
+import { UserService } from './service/user.service';
+import { JwtStrategy } from './strategy/jwt.strategy';
+
+const entities = [User, Organization, Notice, Table, NoticeTable, Conversation, Message]
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    PassportModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
+      }),
+    }),
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'db.sqlite',
-      entities: [User, Organization, Notice, Table, NoticeTable],
+      entities: entities,
       synchronize: true, // apenas para dev, usar migrations em produção
     }),
-    TypeOrmModule.forFeature([User, Organization, Notice, Table, NoticeTable]),
+    TypeOrmModule.forFeature(entities),
   ],
-  providers: [KafkaService, QuestionService, NoticeService, OrganizationService],
-  controllers: [QuestionController, NoticeController, OrganizationController],
+  providers: [KafkaService, ConversationService, NoticeService, OrganizationService, AuthService, UserService, JwtStrategy],
+  controllers: [AuthController, ConversationController, NoticeController, OrganizationController],
 })
 export class AppModule {}

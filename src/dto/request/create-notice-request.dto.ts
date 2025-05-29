@@ -1,6 +1,5 @@
 import { Type } from 'class-transformer';
 import { IsDefined, IsString, ValidateNested } from 'class-validator';
-import { Organization } from 'src/entity/organization.entity';
 import { CreateOrganizationDTO } from './create-organization-request.dto';
 
 export class CreateNoticeRequestDTO {
