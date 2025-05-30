@@ -82,9 +82,10 @@ export class NoticeController {
     @Query('status') status?: string,
     @Query('title') title?: string,
     @Query('organizationId') organizationId?: string,
+    @Query('isEmbeded') isEmbeded?: boolean,
   ): Promise<NoticeResponseDTO[]> {
-    this.logger.log(`Fetching notices with filters: ${JSON.stringify({ status, title, organizationId })}`);
-    return this.noticeService.find({ status, title, organizationId });
+    this.logger.log(`Fetching notices with filters: ${JSON.stringify({ status, title, organizationId, isEmbeded })}`);
+    return this.noticeService.find({ status, title, organizationId, isEmbeded });
   }
 
   @Put(':id')

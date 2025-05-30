@@ -35,8 +35,8 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
   }
 
   @SubscribeMessage('question')
-  async handleQuestion(client: Socket, payload: { noticeId: string; question: string }) {
-    const { noticeId, question } = payload;
+  async handleQuestion(client: Socket, payload: { noticeId: string; question: string, conversationId?: string }) {
+    const { noticeId, question, conversationId } = payload;
     this.logger.log(`Received question: ${question} from ${client.id}`);
     const user = client.data.user;
     const userId = user.sub;
@@ -46,10 +46,12 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
       question,
       userId,
       socket: client,
+      conversationId
     });
   }
 
   sendAnswerChunk(conversationId: string, chunk: string, done: boolean) {
+    console.log(chunk)
     this.server.emit(conversationId, { answer_chunk: chunk, done });
   }
 }

@@ -126,6 +126,7 @@ export class NoticeService {
     status?: string;
     title?: string;
     organizationId?: string;
+    isEmbeded?: boolean;
   }): Promise<NoticeResponseDTO[]> {
     try {
       const qb = this.repository.createQueryBuilder('notice')
@@ -152,6 +153,10 @@ export class NoticeService {
 
       if (filters.title) {
         qb.andWhere('notice.title ILIKE :title', { title: `%${filters.title}%` });
+      }
+
+      if (filters.isEmbeded !== undefined) {
+        qb.andWhere('notice.status = :status', { status: NoticeStatus.EMBEDDED });
       }
 
       return await qb.getMany();

@@ -1,4 +1,4 @@
-import { Body, Controller, Logger, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ConversationGateway } from '../gateway/conversation.gateway';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AskQuestionResponseDTO } from 'src/dto/response/ask-question-response.dto';
@@ -19,6 +19,7 @@ export class ConversationController {
   @MessagePattern('docflow-answer')
   async handleEmbedResult(@Payload() payload: AskQuestionResponseDTO) {
     try {
+      console.log('Received message:', payload);
       this.gateway.sendAnswerChunk(
         payload.conversation_id,
         payload.answer_chunk,
@@ -32,16 +33,32 @@ export class ConversationController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  async create(@Req() req: Request, @Body() noticeId: string): Promise<Conversation> {
-    this.logger.log(`Creating conversation with noticeId: ${noticeId}`);
+  async create(@Req() req: Request, @Body() body: { noticeId: string }): Promise<Conversation> {
+    this.logger.log(`Creating conversation with noticeId: ${body.noticeId}`);
     try {
       const user = req.user as { userId: string };
-      const conversation = await this.service.create(noticeId, user.userId);
+      const conversation = await this.service.create(body.noticeId, user.userId);
       this.logger.log(`Notice created with ID: ${conversation.conversationId}`);
       return conversation;
     } catch (error) {
       this.logger.error(`Failed to create conversation: ${error.message}`, error.stack);
       throw error;
+    }
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async find(
+    @Req() req: Request,
+    @Query('noticeId') noticeId: string,
+  ): Promise<Conversation[]> {
+    try {
+      const user = req.user as { userId: string };
+      this.logger.log(`Fetching conversations for user: ${user.userId}`);
+      return this.service.find(noticeId, user.userId);
+    } catch (e) {
+      this.logger.error(`Failed to find conversations: ${e.message}`, e);
+      throw e;
     }
   }
 }

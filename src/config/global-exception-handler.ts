@@ -16,12 +16,12 @@ export class GlobalExceptionHandler implements ExceptionFilter {
         ? exception.getStatus()
         : 500;
 
-    // Formatação do erro
     const message =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
 
+    // console.error(exception)
     response.status(status).json({
       statusCode: status,
       message,
