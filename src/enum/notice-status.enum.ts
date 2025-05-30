@@ -1,4 +1,5 @@
 export enum NoticeStatus {
     PENDING_EMBEDDING = 'PENDING_EMBEDDING',
+    EMBEDDING = 'EMBEDDING',
     EMBEDDED = 'EMBEDDED',
 }

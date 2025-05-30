@@ -19,7 +19,7 @@ export class User {
   @Column({
     type: 'text',
     default: UserRole.USER,
-    name: 'status',
+    name: 'role',
   })
   role: UserRole;
 

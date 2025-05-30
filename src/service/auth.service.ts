@@ -23,10 +23,11 @@ export class AuthService {
 
   async login(user: User) {
     try {
-      const payload = { sub: user.userId, email: user.email };
+      const payload = { sub: user.userId, email: user.email, role: user.role };
       this.logger.log(`Gerando token JWT para usuário: ${user.email}`);
       return {
         token: this.jwtService.sign(payload),
+        user
       };
     } catch (error) {
       this.logger.error(`Erro no login: ${error.message}`, error.stack);
@@ -40,7 +41,6 @@ export class AuthService {
       if (existingUser) {
         throw new UnauthorizedException('Usuário já existe');
       }
-      console.log(name, email, password);
       const user = await this.userService.createUser(name, email, password);
       return this.login(user);
     } catch (error) {

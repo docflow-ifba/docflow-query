@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Teste WebSocket NestJS</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    .cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      width: 200px;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .card:hover {
+      background-color: #f9f9f9;
+    }
+
+    .card.selected {
+      border-color: #007BFF;
+      background-color: #e6f0ff;
+    }
+
+    .card-title {
+      font-weight: bold;
+    }
+
+    .resposta {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 8px;
+      border-radius: 6px;
+      min-height: 50px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Teste de Pergunta via WebSocket</h1>
+
+  <div>
+    <h3>Selecione um Edital:</h3>
+    <div id="cards" class="cards-container"></div>
+  </div>
+
+  <label for="question">Pergunta:</label><br />
+  <textarea id="question" rows="4" cols="50"></textarea><br /><br />
+
+  <button type="button" onclick="enviarPergunta()">Enviar Pergunta</button>
+
+  <h2>Resposta:</h2>
+  <div id="resposta" class="resposta"></div>
+
+  <script>
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwZWU0MTQ3NS1kZDE5LTRjZjAtYTYyNC0zNTg1NGI0YWVkODUiLCJlbWFpbCI6ImFsaXNzb25AZ21haWwuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzQ4NjEwNzE3LCJleHAiOjE3NDg2OTcxMTd9.cz5W_Pp9t081NGNNDcY3J9D_CjU3rUNshoN8ZCcmc3k';
+
+    let socket = null;  
+    let currentNoticeId = null;
+
+    async function carregarNotices() {
+      const response = await fetch('http://localhost:3001/api/v1/notices', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const notices = await response.json();
+      const container = document.getElementById('cards');
+      container.innerHTML = '';
+
+      notices.forEach(notice => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.noticeId = notice.noticeId;
+        card.innerHTML = `<div class="card-title">${notice.title}</div>
+                          <div><strong>Status:</strong> ${notice.status}</div>
+                          <div><strong>Deadline:</strong> ${new Date(notice.deadline).toLocaleDateString()}</div>`;
+
+        card.addEventListener('click', () => selecionarEdital(card, notice.noticeId));
+        container.appendChild(card);
+      });
+    }
+
+    function selecionarEdital(cardElement, noticeId) {
+      document.querySelectorAll('.card').forEach(card => card.classList.remove('selected'));
+      cardElement.classList.add('selected');
+
+      currentNoticeId = noticeId;
+      iniciarSocket();
+    }
+
+    function iniciarSocket() {
+      if (socket) {
+        socket.disconnect();
+      }
+
+      socket = io('http://localhost:3001', {
+        auth: { token }
+      });
+
+      socket.on(`answer: ${currentNoticeId}`, (data) => {
+        const respostaDiv = document.getElementById('resposta');
+        respostaDiv.innerText += data.answer_chunk;
+        if (data.done) {
+          respostaDiv.innerHTML += '\n\n<strong>Finalizado</strong>';
+        }
+      });
+    }
+
+    function enviarPergunta() {
+      const pergunta = document.getElementById('question').value;
+      document.getElementById('resposta').innerText = '';
+
+      if (!socket || !currentNoticeId) {
+        alert('Selecione um edital!');
+        return;
+      }
+
+      socket.emit('question', {
+        noticeId: currentNoticeId,
+        question: pergunta,
+      });
+    }
+
+    carregarNotices();
+  </script>
+</body>
+</html>

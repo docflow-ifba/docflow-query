@@ -68,6 +68,9 @@ export class NoticeService {
 
       this.logger.log(`Sending message to Kafka (topic: ${TOPIC})`);
       await this.kafkaService.sendMessage<CreateNoticeMessageDTO>(TOPIC, message);
+
+      notice.status = NoticeStatus.EMBEDDING;
+      await this.repository.save(notice);
     } catch (error) {
       this.logger.error(`Failed to embed notice: ${id}`, error.stack);
       throw new InternalServerErrorException('Failed to embed notice');
@@ -86,7 +89,7 @@ export class NoticeService {
       this.logger.log(`Notice created with ID: ${savedNotice.noticeId}`);
       return savedNotice;
     } catch (error) {
-      this.logger.error('Failed to create notice', error.stack);
+      this.logger.error('Failed to create notice', error);
       throw new InternalServerErrorException('Failed to create notice');
     }
   }

@@ -21,6 +21,7 @@ import { AuthController } from './controller/auth.controller';
 import { AuthService } from './service/auth.service';
 import { UserService } from './service/user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
+import { ConversationGateway } from './gateway/conversation.gateway';
 
 const entities = [User, Organization, Notice, Table, NoticeTable, Conversation, Message]
 
@@ -46,7 +47,16 @@ const entities = [User, Organization, Notice, Table, NoticeTable, Conversation, 
     }),
     TypeOrmModule.forFeature(entities),
   ],
-  providers: [KafkaService, ConversationService, NoticeService, OrganizationService, AuthService, UserService, JwtStrategy],
+  providers: [
+    KafkaService,
+    ConversationService,
+    NoticeService,
+    OrganizationService,
+    AuthService,
+    UserService,
+    JwtStrategy,
+    ConversationGateway
+  ],
   controllers: [AuthController, ConversationController, NoticeController, OrganizationController],
 })
 export class AppModule {}
