@@ -29,10 +29,11 @@ export class NoticeController {
   @MessagePattern('docflow-embed-result')
   async handleEmbedResult(@Payload() payload: EmbedNoticeResponseDTO) {
     try {
-      this.logger.log(`Received message from Kafka: ${payload.docflow_notice_id}`);
+      this.logger.log(`Received embed result for notice: ${payload.docflow_notice_id}`);
       await this.noticeService.handleEmbedResult(payload);
+      this.logger.log(`Successfully processed embed result for notice: ${payload.docflow_notice_id}`);
     } catch (error) {
-      this.logger.warn(`Error processing message: ${error.message}`);
+      this.logger.error(`Error processing embed result: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -41,10 +42,11 @@ export class NoticeController {
   @UseGuards(JwtAuthGuard)
   async embed(@Param('id') id: string): Promise<void> {
     try {
-      this.logger.log(`Fetching notice with id: ${id}`);
+      this.logger.log(`Starting embed process for notice: ${id}`);
       await this.noticeService.embed(id);
+      this.logger.log(`Successfully initiated embed process for notice: ${id}`);
     } catch (error) {
-      this.logger.warn(`Error embedding notice with id: ${id}`);
+      this.logger.error(`Error embedding notice: ${id}, error: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -55,8 +57,8 @@ export class NoticeController {
     this.logger.log(`Creating notice with title: ${body.title}`);
     try {
       const notice = await this.noticeService.create(body);
-      this.logger.log(`Notice created with ID: ${notice.noticeId}`);
-      delete notice.pdfBase64
+      this.logger.log(`Notice created successfully with ID: ${notice.noticeId}`);
+      delete notice.pdfBase64;
       return notice;
     } catch (error) {
       this.logger.error(`Failed to create notice: ${error.message}`, error.stack);
@@ -69,9 +71,11 @@ export class NoticeController {
   async getById(@Param('id') id: string): Promise<Notice> {
     this.logger.log(`Fetching notice with ID: ${id}`);
     try {
-      return await this.noticeService.getById(id);
+      const notice = await this.noticeService.getById(id);
+      this.logger.log(`Successfully retrieved notice with ID: ${id}`);
+      return notice;
     } catch (error) {
-      this.logger.warn(`Notice with ID ${id} not found`);
+      this.logger.error(`Notice with ID ${id} not found: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -85,7 +89,14 @@ export class NoticeController {
     @Query('isEmbeded') isEmbeded?: boolean,
   ): Promise<NoticeResponseDTO[]> {
     this.logger.log(`Fetching notices with filters: ${JSON.stringify({ status, title, organizationId, isEmbeded })}`);
-    return this.noticeService.find({ status, title, organizationId, isEmbeded });
+    try {
+      const notices = await this.noticeService.find({ status, title, organizationId, isEmbeded });
+      this.logger.log(`Found ${notices.length} notices matching filters`);
+      return notices;
+    } catch (error) {
+      this.logger.error(`Error fetching notices: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   @Put(':id')
@@ -94,10 +105,10 @@ export class NoticeController {
     this.logger.log(`Updating notice with ID: ${id}`);
     try {
       const updated = await this.noticeService.update(id, updateData);
-      this.logger.log(`Notice with ID ${id} updated`);
+      this.logger.log(`Notice with ID ${id} updated successfully`);
       return updated;
     } catch (error) {
-      this.logger.warn(`Update failed for notice with ID ${id}`);
+      this.logger.error(`Update failed for notice with ID ${id}: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -108,9 +119,9 @@ export class NoticeController {
     this.logger.log(`Deleting notice with ID: ${id}`);
     try {
       await this.noticeService.delete(id);
-      this.logger.log(`Notice with ID ${id} deleted`);
+      this.logger.log(`Notice with ID ${id} deleted successfully`);
     } catch (error) {
-      this.logger.warn(`Delete failed for notice with ID ${id}`);
+      this.logger.error(`Delete failed for notice with ID ${id}: ${error.message}`, error.stack);
       throw error;
     }
   }

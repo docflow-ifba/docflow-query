@@ -16,10 +16,10 @@ export class JwtWsGuard implements CanActivate {
     const client: Socket = context.switchToWs().getClient();
     const token = client.handshake.auth?.token;
 
-    if (!token) throw new WsException('Token não fornecido');
+    if (!token) throw new WsException('Token not provided.');
 
     try {
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify(token.replace(/^Bearer\s+/i, ''));
       client.data.user = payload;
       return true;
     } catch (err) {

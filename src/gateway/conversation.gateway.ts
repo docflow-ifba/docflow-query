@@ -1,4 +1,3 @@
-// conversation.gateway.ts
 import {
   SubscribeMessage,
   WebSocketGateway,
@@ -8,9 +7,11 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { forwardRef, Inject, Logger, UseGuards } from '@nestjs/common';
 import { ConversationService } from '../service/conversation.service';
 import { JwtWsGuard } from 'src/guard/jwt-ws.guard';
+import { Conversation } from 'src/entity/conversation.entity';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({ cors: true })
 @UseGuards(JwtWsGuard)
@@ -20,38 +21,83 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
 
   private readonly logger = new Logger(ConversationGateway.name);
 
-  constructor(private readonly conversationService: ConversationService) {}
+  constructor(
+    @Inject(forwardRef(() => ConversationService))
+    private readonly conversationService: ConversationService,
+    private readonly jwtService: JwtService
+  ) {}
 
   afterInit(server: Server) {
-    this.logger.log('WebSocket Gateway initialized');
+    this.logger.log('WebSocket Gateway initialized successfully');
   }
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+  async handleConnection(client: Socket) {
+    const token = client.handshake.auth?.token;
+    if (!token) {
+      this.logger.warn(`Connection attempt rejected: Missing authentication token for client ${client.id}`);
+      client.disconnect();
+      return;
+    }
+
+    try {
+      const tokenValue = token.replace(/^Bearer\s+/i, '');
+      const payload = this.jwtService.verify(tokenValue);
+      client.data.user = payload;
+      
+      await client.join(payload.sub);
+      this.logger.log(`Client connected: ${client.id} (userId: ${payload.sub})`);
+    } catch (err) {
+      this.logger.error(`Authentication failed: Invalid token for client ${client.id}`, err.stack);
+      client.disconnect();
+    }
   }
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+  async handleDisconnect(client: Socket) {
+    try {
+      const user = client.data.user;
+      const userId = user?.sub;
+
+      if (userId) {
+        await client.leave(userId);
+        this.logger.log(`Client disconnected: ${client.id} (userId: ${userId})`);
+      } else {
+        this.logger.log(`Client disconnected: ${client.id} (unauthenticated)`);
+      }
+    } catch (error) {
+      this.logger.error(`Error during client disconnect: ${error.message}`, error.stack);
+    }
   }
 
   @SubscribeMessage('question')
-  async handleQuestion(client: Socket, payload: { noticeId: string; question: string, conversationId?: string }) {
-    const { noticeId, question, conversationId } = payload;
-    this.logger.log(`Received question: ${question} from ${client.id}`);
-    const user = client.data.user;
-    const userId = user.sub;
+  async handleQuestion(client: Socket, payload: { noticeId: string; prompt: string }) {
+    try {
+      const { noticeId, prompt } = payload;
+      const user = client.data.user;
+      const userId = user.sub;
 
-    await this.conversationService.handleQuestionWebSocket({
-      noticeId,
-      question,
-      userId,
-      socket: client,
-      conversationId
-    });
+      this.logger.log(`Received question from user ${userId} for notice ${noticeId}: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
+      
+      await this.conversationService.handleQuestionWebSocket({
+        noticeId,
+        prompt,
+        userId,
+        socket: client,
+      });
+      
+      this.logger.log(`Question processing initiated for user ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error processing question: ${error.message}`, error.stack);
+      // Notify client about the error
+      client.emit('error', { message: 'Failed to process your question. Please try again.' });
+    }
   }
 
-  sendAnswerChunk(conversationId: string, chunk: string, done: boolean) {
-    console.log(chunk)
-    this.server.emit(conversationId, { answer_chunk: chunk, done });
+  sendAnswerChunk(userId: string, docflowNoticeId: string, conversation: Conversation, done: boolean) {
+    try {
+      this.logger.log(`Sending ${done ? 'final' : 'partial'} answer chunk to user ${userId} for notice ${docflowNoticeId}`);
+      this.server.to(userId).emit(docflowNoticeId, { conversation, done });
+    } catch (error) {
+      this.logger.error(`Failed to send answer chunk to user ${userId}: ${error.message}`, error.stack);
+    }
   }
 }

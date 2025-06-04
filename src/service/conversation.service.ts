@@ -7,21 +7,14 @@ import { NoticeService } from './notice.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Socket } from 'socket.io';
+
 import { Conversation } from 'src/entity/conversation.entity';
-import { Message } from 'src/entity/message.entity';
-import { User } from 'src/entity/user.entity';
 import { Sender } from 'src/enum/sender.enum';
 import { UserService } from './user.service';
-import { Notice } from 'src/entity/notice.entity';
+import { ConversationGateway } from 'src/gateway/conversation.gateway';
+import { AskQuestionResponseDTO } from 'src/dto/response/ask-question-response.dto';
+import { QuestionWSParamsDTO } from 'src/dto/response/question-ws-params.dto';
 
-interface HandleQuestionWSParams {
-  noticeId: string;
-  question: string;
-  userId: string;
-  socket: Socket;
-  conversationId?: string;
-}
 
 @Injectable()
 export class ConversationService {
@@ -33,93 +26,130 @@ export class ConversationService {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     @InjectRepository(Conversation)
-    private readonly conversationRepository: Repository<Conversation>,
-    @InjectRepository(Message)
-    private readonly messageRepository: Repository<Message>,
+    public readonly repository: Repository<Conversation>,
+    private readonly gateway: ConversationGateway
   ) {}
 
-  async handleQuestionWebSocket(params: HandleQuestionWSParams): Promise<void> {
-    const { noticeId, question, userId, socket, conversationId } = params;
+  async handleEmbedResult(payload: AskQuestionResponseDTO): Promise<void> {
+    try {
+      this.logger.log(`Processing answer for conversation: ${payload.answer_conversation_id}`);
+      
+      const answerConversation = await this.repository.findOne({
+          where: { conversationId: payload.answer_conversation_id },
+      });
+      
+      if (!answerConversation) {
+        this.logger.warn(`Conversation not found: ${payload.answer_conversation_id}`);
+        return;
+      }
 
-    const notice = await this.noticeService.getById(noticeId);
-    const user = await this.userService.getById(userId);
+      answerConversation.content = payload.done 
+        ? payload.answer 
+        : `${answerConversation.content || ""}${payload.answer || ""}`;
+      
+      await this.repository.save(answerConversation);
+      this.logger.log(`Conversation updated: ${payload.answer_conversation_id}, done: ${payload.done}`);
 
-    const conversation = conversationId
-      ? await this.loadExistingConversation(conversationId, notice, user)
-      : await this.createNewConversation(notice, user);
-
-    const questionMessage = this.buildQuestionMessage(question, notice, conversation);
-
-    await this.saveUserMessage(conversation, question);
-    socket.data.conversationId = conversation.conversationId;
-
-    this.sendMessage(questionMessage);
-  }
-
-  async sendMessage(questionMessage: AskQuestionMessageDTO) {
-    const topic = this.configService.get<string>('KAFKA_QUESTION_TOPIC');
-    await this.kafkaService.sendMessage<AskQuestionMessageDTO>(topic, questionMessage);
-  }
-
-  private async loadExistingConversation(conversationId: string, notice: Notice, user: User): Promise<Conversation> {
-    return this.conversationRepository.findOneOrFail({
-      where: { conversationId, notice, user },
-      relations: ['messages'],
-    });
-  }
-
-  private async createNewConversation(notice: Notice, user: User): Promise<Conversation> {
-    const conversation = this.conversationRepository.create({ notice, user });
-    return this.conversationRepository.save(conversation);
-  }
-
-  private buildQuestionMessage(question: string, notice: Notice, conversation: Conversation): AskQuestionMessageDTO {
-    const baseMessage: AskQuestionMessageDTO = {
-      question,
-      docflow_notice_id: notice.docflowNoticeId,
-      conversation_id: conversation.conversationId,
-    };
-
-    if (conversation.messages) {
-      baseMessage.messages = conversation.messages.map(message => ({
-        content: message.content,
-        role: message.sender === Sender.USER ? 'user' : 'system',
-      }));
+      this.gateway.sendAnswerChunk(
+        payload.user_id,
+        payload.docflow_notice_id,
+        answerConversation,
+        payload.done
+      );
+    } catch (error) {
+      this.logger.error(`Error handling embed result: ${error.message}`, error.stack);
+      throw error;
     }
-
-    return baseMessage;
   }
 
-  private async saveUserMessage(conversation: Conversation, content: string): Promise<void> {
-    const message = this.messageRepository.create({
-      conversation,
-      content,
-      sender: Sender.USER,
-    });
-    await this.messageRepository.save(message);
+  async handleQuestionWebSocket(params: QuestionWSParamsDTO): Promise<void> {
+    try {
+      const { noticeId, prompt, userId } = params;
+      this.logger.log(`Processing question for notice: ${noticeId}, user: ${userId}`);
+
+      const notice = await this.noticeService.getById(noticeId);
+      const user = await this.userService.getById(userId);
+
+      this.logger.log(`Creating conversation entries for question and answer`);
+      const question = this.repository.create({ notice, user, content: prompt, sender: Sender.USER });
+      const answer = this.repository.create({ notice, user, content: "", sender: Sender.AI });
+
+      await this.repository.save(question);
+      const answerEntity = await this.repository.save(answer);
+      
+      const topic = this.configService.get<string>('KAFKA_QUESTION_TOPIC');
+      this.logger.log(`Sending question to Kafka topic: ${topic}`);
+      
+      await this.kafkaService.sendMessage<AskQuestionMessageDTO>(topic, {
+        prompt,
+        user_id: userId,
+        docflow_notice_id: notice.docflowNoticeId,
+        answer_conversation_id: answerEntity.conversationId,
+      });
+      
+      this.logger.log(`Question successfully sent to processing queue`);
+    } catch (error) {
+      this.logger.error(`Error handling WebSocket question: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   async create(noticeId: string, userId: string): Promise<Conversation> {
-    const notice = await this.noticeService.getById(noticeId);
-    const user = await this.userService.getById(userId);
+    try {
+      this.logger.log(`Creating new conversation for notice: ${noticeId}, user: ${userId}`);
+      
+      const notice = await this.noticeService.getById(noticeId);
+      const user = await this.userService.getById(userId);
 
-    const conversation = this.conversationRepository.create({ notice, user });
-    return this.conversationRepository.save(conversation);
+      const conversation = this.repository.create({ notice, user });
+      const saved = await this.repository.save(conversation);
+      
+      this.logger.log(`Conversation created: ${saved.conversationId}`);
+      return saved;
+    } catch (error) {
+      this.logger.error(`Error creating conversation: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   async find(noticeId: string, userId: string): Promise<Conversation[]> {
     try {
+      this.logger.log(`Finding conversations for notice: ${noticeId}, user: ${userId}`);
+      
       const notice = await this.noticeService.getById(noticeId);
       const user = await this.userService.getById(userId);
 
-      const conversations = await this.conversationRepository.find({
+      const conversations = await this.repository.find({
         where: { notice, user },
-        relations: ['messages'],
-        // order: { createdAt: 'DESC' },
+        order: { createdAt: 'DESC' },
       });
+      
+      this.logger.log(`Found ${conversations.length} conversations`);
       return conversations;
-    } catch (e) {
-      this.logger.error(`Failed to find conversations: ${e.message}`, e);
+    } catch (error) {
+      this.logger.error(`Error finding conversations: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  async findById(conversationId: string): Promise<Conversation> {
+    try {
+      this.logger.log(`Finding conversation by ID: ${conversationId}`);
+      
+      const conversation = await this.repository.findOne({
+        where: { conversationId },
+      });
+      
+      if (!conversation) {
+        this.logger.warn(`Conversation not found: ${conversationId}`);
+      } else {
+        this.logger.log(`Conversation found: ${conversationId}`);
+      }
+      
+      return conversation;
+    } catch (error) {
+      this.logger.error(`Error finding conversation by ID: ${conversationId}: ${error.message}`, error.stack);
+      throw error;
     }
   }
 }

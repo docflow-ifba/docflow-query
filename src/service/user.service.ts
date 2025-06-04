@@ -16,52 +16,84 @@ export class UserService {
 
   async findByEmail(email: string): Promise<User | null> {
     try {
-      this.logger.log(`Buscando usuário por email: ${email}`);
-      return await this.repository.findOne({ where: { email } });
+      this.logger.log(`Finding user by email: ${email}`);
+      const user = await this.repository.findOne({ where: { email } });
+      
+      if (user) {
+        this.logger.log(`User found with email: ${email}`);
+      } else {
+        this.logger.log(`No user found with email: ${email}`);
+      }
+      
+      return user;
     } catch (error) {
-      this.logger.error(`Erro ao buscar usuário: ${error.message}`, error.stack);
+      this.logger.error(`Error finding user by email: ${error.message}`, error.stack);
       throw error;
     }
   }
 
   async createUser(name: string, email: string, password: string): Promise<User> {
     try {
-      this.logger.log(`Criando usuário: ${email}`);
+      this.logger.log(`Creating new user: ${email}`);
+      
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = this.repository.create({ name, email, password: hashedPassword, role: UserRole.ADMIN }); // TODO
-      return await this.repository.save(user);
+      this.logger.log(`Password hashed successfully for user: ${email}`);
+      
+      const user = this.repository.create({ 
+        name, 
+        email, 
+        password: hashedPassword, 
+        role: UserRole.ADMIN // TODO: Make this configurable
+      });
+      
+      const savedUser = await this.repository.save(user);
+      this.logger.log(`User created successfully with ID: ${savedUser.userId}`);
+      
+      return savedUser;
     } catch (error) {
-      this.logger.error(`Erro ao criar usuário: ${error.message}`, error.stack);
+      this.logger.error(`Error creating user: ${error.message}`, error.stack);
       throw error;
     }
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
     try {
-      this.logger.log(`Validando usuário: ${email}`);
+      this.logger.log(`Validating credentials for user: ${email}`);
+      
       const user = await this.findByEmail(email);
-      if (!user) return null;
+      if (!user) {
+        this.logger.warn(`Validation failed: User not found: ${email}`);
+        return null;
+      }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) return null;
+      if (!isPasswordValid) {
+        this.logger.warn(`Validation failed: Invalid password for user: ${email}`);
+        return null;
+      }
 
+      this.logger.log(`Credentials validated successfully for user: ${email}`);
       return user;
     } catch (error) {
-      this.logger.error(`Erro ao validar usuário: ${error.message}`, error.stack);
+      this.logger.error(`Error validating user: ${error.message}`, error.stack);
       throw error;
     }
   }
 
   async getById(id: string): Promise<User> {
     try {
+      this.logger.log(`Finding user by ID: ${id}`);
+      
       const user = await this.repository.findOne({ where: { userId: id } });
       if (!user) {
-        this.logger.warn(`User not found with userId: ${id}`);
+        this.logger.warn(`User not found with ID: ${id}`);
         throw new NotFoundException('User not found');
       }
+      
+      this.logger.log(`User found with ID: ${id}`);
       return user;
     } catch (error) {
-      this.logger.error(`Failed to get user by ID: ${id}`, error.stack);
+      this.logger.error(`Error retrieving user by ID ${id}: ${error.message}`, error.stack);
       throw error instanceof NotFoundException ? error : new InternalServerErrorException();
     }
   }

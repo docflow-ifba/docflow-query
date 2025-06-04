@@ -14,7 +14,6 @@ import { OrganizationService } from './service/organization.service';
 import { OrganizationController } from './controller/organization.controller';
 import { NoticeTable } from './entity/notice-table.entity';
 import { Conversation } from './entity/conversation.entity';
-import { Message } from './entity/message.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './controller/auth.controller';
@@ -23,7 +22,7 @@ import { UserService } from './service/user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { ConversationGateway } from './gateway/conversation.gateway';
 
-const entities = [User, Organization, Notice, Table, NoticeTable, Conversation, Message]
+const entities = [User, Organization, Notice, Table, NoticeTable, Conversation,]
 
 @Module({
   imports: [

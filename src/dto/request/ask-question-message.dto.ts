@@ -1,8 +1,9 @@
 import { MessageRequestDTO } from "./message-request.dto";
 
 export class AskQuestionMessageDTO {
-    question: string;
+    prompt: string;
     docflow_notice_id: string;
-    conversation_id: string;
+    user_id?: string;
+    answer_conversation_id?: string;
     messages?: MessageRequestDTO[];
 }

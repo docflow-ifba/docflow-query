@@ -13,9 +13,11 @@ export class OrganizationController {
   @Get()
   @UseGuards(JwtAuthGuard)
   async find(@Query('query') query: string): Promise<Organization[]> {
-    this.logger.log(`Searching for organizations with query: ${query}`);
+    this.logger.log(`Searching for organizations with query: ${query || 'all'}`);
     try {
-      return await this.service.find(query);
+      const organizations = await this.service.find(query);
+      this.logger.log(`Found ${organizations.length} organizations matching query`);
+      return organizations;
     } catch (error) {
       this.logger.error(`Failed to fetch organizations: ${error.message}`, error.stack);
       throw error;
@@ -27,9 +29,11 @@ export class OrganizationController {
   async getById(@Param('id') id: string): Promise<Organization> {
     this.logger.log(`Fetching organization with ID: ${id}`);
     try {
-      return await this.service.getById(id);
+      const organization = await this.service.getById(id);
+      this.logger.log(`Successfully retrieved organization with ID: ${id}`);
+      return organization;
     } catch (error) {
-      this.logger.warn(`Organization with ID ${id} not found`);
+      this.logger.error(`Organization with ID ${id} not found: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -40,7 +44,7 @@ export class OrganizationController {
     this.logger.log(`Creating organization with name: ${dto.name}`);
     try {
       const org = await this.service.create(dto);
-      this.logger.log(`Organization created with ID: ${org.organizationId}`);
+      this.logger.log(`Organization created successfully with ID: ${org.organizationId}`);
       return org;
     } catch (error) {
       this.logger.error(`Failed to create organization: ${error.message}`, error.stack);
@@ -48,30 +52,30 @@ export class OrganizationController {
     }
   }
 
-    @Put(':id')
-    @UseGuards(JwtAuthGuard)
-    async update(@Param('id') id: string, @Body() updateData: Partial<Organization>): Promise<Organization> {
-      this.logger.log(`Updating organization with ID: ${id}`);
-      try {
-        const updated = await this.service.update(id, updateData);
-        this.logger.log(`Organization with ID ${id} updated`);
-        return updated;
-      } catch (error) {
-        this.logger.warn(`Update failed for organization with ID ${id}`);
-        throw error;
-      }
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  async update(@Param('id') id: string, @Body() updateData: Partial<Organization>): Promise<Organization> {
+    this.logger.log(`Updating organization with ID: ${id}`);
+    try {
+      const updated = await this.service.update(id, updateData);
+      this.logger.log(`Organization with ID ${id} updated successfully`);
+      return updated;
+    } catch (error) {
+      this.logger.error(`Update failed for organization with ID ${id}: ${error.message}`, error.stack);
+      throw error;
     }
-  
-    @Delete(':id')
-    @UseGuards(JwtAuthGuard)
-    async delete(@Param('id') id: string): Promise<void> {
-      this.logger.log(`Deleting Organization with ID: ${id}`);
-      try {
-        await this.service.delete(id);
-        this.logger.log(`Organization with ID ${id} deleted`);
-      } catch (error) {
-        this.logger.warn(`Delete failed for organization with ID ${id}`);
-        throw error;
-      }
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async delete(@Param('id') id: string): Promise<void> {
+    this.logger.log(`Deleting organization with ID: ${id}`);
+    try {
+      await this.service.delete(id);
+      this.logger.log(`Organization with ID ${id} deleted successfully`);
+    } catch (error) {
+      this.logger.error(`Delete failed for organization with ID ${id}: ${error.message}`, error.stack);
+      throw error;
     }
+  }
 }

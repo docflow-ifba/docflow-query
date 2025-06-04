@@ -12,14 +12,16 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDTO: LoginDTO) {
     try {
-      this.logger.log(`Tentativa de login para email: ${loginDTO.email}`);
+      this.logger.log(`Login attempt for email: ${loginDTO.email}`);
       const user = await this.service.validateUser(loginDTO.email, loginDTO.password);
       if (!user) {
-        return { message: 'Credenciais inválidas' };
+        this.logger.warn(`Invalid credentials for email: ${loginDTO.email}`);
+        return { message: 'Invalid credentials' };
       }
+      this.logger.log(`Successful login for email: ${loginDTO.email}`);
       return await this.service.login(user);
     } catch (error) {
-      this.logger.error(`Erro no endpoint login: ${error.message}`, error.stack);
+      this.logger.error(`Error in login endpoint: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -27,10 +29,12 @@ export class AuthController {
   @Post('register')
   async register(@Body() registerDTO: RegisterDTO) {
     try {
-      this.logger.log(`Tentativa de registro para: ${JSON.stringify(registerDTO)}`);
-      return await this.service.register(registerDTO.name, registerDTO.email, registerDTO.password);
+      this.logger.log(`Registration attempt for email: ${registerDTO.email}`);
+      const result = await this.service.register(registerDTO.name, registerDTO.email, registerDTO.password);
+      this.logger.log(`Successful registration for email: ${registerDTO.email}`);
+      return result;
     } catch (error) {
-      this.logger.error(`Erro no endpoint register: ${error.message}`, error.stack);
+      this.logger.error(`Error in register endpoint: ${error.message}`, error.stack);
       throw error;
     }
   }

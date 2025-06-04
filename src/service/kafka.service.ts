@@ -10,8 +10,8 @@ export class KafkaService implements OnModuleDestroy {
   private readonly logger = new Logger(KafkaService.name);
 
   constructor(private readonly configService: ConfigService) {
-    const brokers = this.configService.get<string>('KAFKA_BROKERS')?.split(',') ?? [];
-    const clientId = this.configService.get<string>('KAFKA_CLIENT_ID') ?? 'default-client';
+    const brokers = this.configService.get<string>('KAFKA_BROKER')?.split(',') ?? [];
+    const clientId = this.configService.get<string>('KAFKA_CLIENT_ID');
 
     const kafkaConfig: KafkaConfig = {
       clientId,
@@ -20,6 +20,7 @@ export class KafkaService implements OnModuleDestroy {
       requestTimeout: 30_000,
     };
 
+    this.logger.log(`Initializing Kafka with client ID: ${clientId}, brokers: ${brokers.join(',')}`);
     this.kafka = new Kafka(kafkaConfig);
     this.producer = this.kafka.producer({
       allowAutoTopicCreation: true,
@@ -31,11 +32,12 @@ export class KafkaService implements OnModuleDestroy {
   private async connectIfNeeded() {
     if (!this.isConnected) {
       try {
+        this.logger.log('Connecting to Kafka...');
         await this.producer.connect();
         this.isConnected = true;
-        this.logger.log('Kafka producer connected');
+        this.logger.log('Kafka producer connected successfully');
       } catch (error) {
-        this.logger.error('Failed to connect Kafka producer', error);
+        this.logger.error('Failed to connect Kafka producer', error.stack);
         throw error;
       }
     }
@@ -47,7 +49,8 @@ export class KafkaService implements OnModuleDestroy {
       const size = Buffer.byteLength(message, 'utf-8');
 
       if (size > 50 * 1024 * 1024) {
-        throw new Error('Mensagem excede o limite de 50MB');
+        this.logger.error(`Message size (${size} bytes) exceeds 50MB limit`);
+        throw new Error('Message exceeds the 50MB limit');
       }
 
       await this.connectIfNeeded();
@@ -59,10 +62,11 @@ export class KafkaService implements OnModuleDestroy {
         timeout: 30_000,
       };
 
+      this.logger.log(`Sending message to topic "${topic}" (size: ${(size / 1024).toFixed(2)} KB)`);
       await this.producer.send(record);
-      this.logger.debug(`Message sent to topic "${topic}"`);
+      this.logger.log(`Message successfully sent to topic "${topic}"`);
     } catch (error) {
-      this.logger.error(`Failed to send message to topic "${topic}"`, error);
+      this.logger.error(`Failed to send message to topic "${topic}": ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -70,10 +74,11 @@ export class KafkaService implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     if (this.isConnected) {
       try {
+        this.logger.log('Disconnecting Kafka producer...');
         await this.producer.disconnect();
-        this.logger.log('Kafka producer disconnected');
+        this.logger.log('Kafka producer disconnected successfully');
       } catch (error) {
-        this.logger.error('Failed to disconnect Kafka producer', error);
+        this.logger.error('Failed to disconnect Kafka producer', error.stack);
       }
     }
   }

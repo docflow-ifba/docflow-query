@@ -14,9 +14,16 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<User | null> {
     try {
-      return await this.userService.validateUser(email, password);
+      this.logger.log(`Validating user credentials for: ${email}`);
+      const user = await this.userService.validateUser(email, password);
+      if (user) {
+        this.logger.log(`User validation successful for: ${email}`);
+      } else {
+        this.logger.warn(`User validation failed for: ${email}`);
+      }
+      return user;
     } catch (error) {
-      this.logger.error(`Erro na validação do usuário: ${error.message}`, error.stack);
+      this.logger.error(`User validation error: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -24,27 +31,34 @@ export class AuthService {
   async login(user: User) {
     try {
       const payload = { sub: user.userId, email: user.email, role: user.role };
-      this.logger.log(`Gerando token JWT para usuário: ${user.email}`);
+      this.logger.log(`Generating JWT token for user: ${user.email}`);
+      const token = this.jwtService.sign(payload);
+      this.logger.log(`Login successful for user: ${user.email}`);
       return {
-        token: this.jwtService.sign(payload),
+        token,
         user
       };
     } catch (error) {
-      this.logger.error(`Erro no login: ${error.message}`, error.stack);
-      throw new UnauthorizedException('Falha no login');
+      this.logger.error(`Login error: ${error.message}`, error.stack);
+      throw new UnauthorizedException('Login failed');
     }
   }
 
   async register(name: string, email: string, password: string) {
     try {
+      this.logger.log(`Processing registration request for: ${email}`);
       const existingUser = await this.userService.findByEmail(email);
       if (existingUser) {
-        throw new UnauthorizedException('Usuário já existe');
+        this.logger.warn(`Registration failed: User already exists: ${email}`);
+        throw new UnauthorizedException('User already exists');
       }
+      
+      this.logger.log(`Creating new user account for: ${email}`);
       const user = await this.userService.createUser(name, email, password);
+      this.logger.log(`User registered successfully: ${email}`);
       return this.login(user);
     } catch (error) {
-      this.logger.error(`Erro no registro: ${error.message}`, error.stack);
+      this.logger.error(`Registration error: ${error.message}`, error.stack);
       throw error;
     }
   }
