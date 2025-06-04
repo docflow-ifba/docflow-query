@@ -22,9 +22,6 @@ export class Notice {
   @Column({ type: 'date', name: 'deadline' })
   deadline: Date;
 
-  @Column({ default: 0, name: 'views' })
-  views: number;
-
   @Column({ type: 'text', name: 'content_markdown', nullable: true })
   contentMarkdown: string;
 

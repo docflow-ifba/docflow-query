@@ -160,7 +160,6 @@ export class NoticeService {
           'notice.docflowNoticeId',
           'notice.title',
           'notice.deadline',
-          'notice.views',
           'notice.status',
           'organization',
         ]);

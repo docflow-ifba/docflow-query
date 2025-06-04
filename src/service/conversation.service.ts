@@ -3,18 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { AskQuestionMessageDTO } from 'src/dto/request/ask-question-message.dto';
 import { KafkaService } from './kafka.service';
 import { NoticeService } from './notice.service';
-
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-
 import { Conversation } from 'src/entity/conversation.entity';
 import { Sender } from 'src/enum/sender.enum';
 import { UserService } from './user.service';
 import { ConversationGateway } from 'src/gateway/conversation.gateway';
 import { AskQuestionResponseDTO } from 'src/dto/response/ask-question-response.dto';
 import { QuestionWSParamsDTO } from 'src/dto/response/question-ws-params.dto';
-
 
 @Injectable()
 export class ConversationService {
@@ -88,6 +84,10 @@ export class ConversationService {
       });
       
       this.logger.log(`Question successfully sent to processing queue`);
+
+      this.waitForAnswerOrTimeout(answerEntity.conversationId, user.userId, notice.docflowNoticeId).catch((error) => {
+        this.logger.error(`Error white waiting for a response: ${error.message}`, error.stack);
+      });
     } catch (error) {
       this.logger.error(`Error handling WebSocket question: ${error.message}`, error.stack);
       throw error;
@@ -121,7 +121,7 @@ export class ConversationService {
 
       const conversations = await this.repository.find({
         where: { notice, user },
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'ASC' },
       });
       
       this.logger.log(`Found ${conversations.length} conversations`);
@@ -151,5 +151,34 @@ export class ConversationService {
       this.logger.error(`Error finding conversation by ID: ${conversationId}: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+    private async waitForAnswerOrTimeout(conversationId: string, userId: string, docflowNoticeId: string, timeoutMs: number = 30000): Promise<void> {
+    const startTime = Date.now();
+    const pollInterval = 1000;
+    const content = 'Desculpe, não conseguimos gerar uma resposta no momento.'
+
+    while (Date.now() - startTime < timeoutMs) {
+      const answer = await this.repository.findOne({ where: { conversationId: conversationId, sender: Sender.AI } });
+      
+      if (answer?.content && answer.content.trim() !== '') {
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    await this.repository.update({ conversationId: conversationId, sender: Sender.AI }, {
+      content,
+    });
+
+    this.gateway.sendAnswerChunk(
+        userId,
+        docflowNoticeId,
+        await this.repository.findOne({ where: { conversationId: conversationId } }),
+        true
+    );
+
+    this.logger.warn(`Timeout while waiting for conversationId: ${conversationId}`);
   }
 }
