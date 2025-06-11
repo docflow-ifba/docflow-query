@@ -58,12 +58,11 @@ export class ConversationService {
     }
   }
 
-  async handleQuestionWebSocket(params: QuestionWSParamsDTO): Promise<void> {
+  async handleQuestionWebSocket(params: QuestionWSParamsDTO): Promise<Conversation> {
     try {
-      const { noticeId, prompt, userId } = params;
-      this.logger.log(`Processing question for notice: ${noticeId}, user: ${userId}`);
+      const { notice, prompt, userId } = params;
+      this.logger.log(`Processing question for notice: ${notice.noticeId}, user: ${userId}`);
 
-      const notice = await this.noticeService.getById(noticeId);
       const user = await this.userService.getById(userId);
 
       this.logger.log(`Creating conversation entries for question and answer`);
@@ -88,6 +87,8 @@ export class ConversationService {
       this.waitForAnswerOrTimeout(answerEntity.conversationId, user.userId, notice.docflowNoticeId).catch((error) => {
         this.logger.error(`Error white waiting for a response: ${error.message}`, error.stack);
       });
+
+      return question;
     } catch (error) {
       this.logger.error(`Error handling WebSocket question: ${error.message}`, error.stack);
       throw error;
@@ -153,7 +154,7 @@ export class ConversationService {
     }
   }
 
-    private async waitForAnswerOrTimeout(conversationId: string, userId: string, docflowNoticeId: string, timeoutMs: number = 30000): Promise<void> {
+  private async waitForAnswerOrTimeout(conversationId: string, userId: string, docflowNoticeId: string, timeoutMs: number = 30000): Promise<void> {
     const startTime = Date.now();
     const pollInterval = 1000;
     const content = 'Desculpe, não conseguimos gerar uma resposta no momento.'

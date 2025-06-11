@@ -33,7 +33,7 @@ export class Notice {
 
   @Column({
     type: 'text',
-    default: NoticeStatus.PENDING_EMBEDDING,
+    default: NoticeStatus.PENDING,
     name: 'status',
   })
   status: NoticeStatus;

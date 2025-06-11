@@ -35,9 +35,17 @@ export class NoticeService {
       this.logger.log(`Processing embed result for notice: ${payload.docflow_notice_id}`);
       
       const notice = await this.getByDocflowNoticeId(payload.docflow_notice_id);
+
+      if(notice.status === NoticeStatus.ERROR || payload.error) {
+        this.logger.error(`Embed error for notice ${payload.docflow_notice_id}: ${payload.error}`);
+        notice.status = NoticeStatus.ERROR;
+        await this.repository.save(notice);
+        throw new InternalServerErrorException(`Embed error: ${payload.error}`);
+      }
+
       notice.contentMarkdown = payload.content_md;
       notice.cleanMarkdown = payload.clean_md;
-      notice.status = NoticeStatus.EMBEDDED;
+      notice.status = NoticeStatus.PROCESSED;
 
       if(payload.tables_md && payload.tables_md.length > 0) {
         this.logger.log(`Processing ${payload.tables_md.length} tables for notice: ${notice.noticeId}`);
@@ -75,10 +83,10 @@ export class NoticeService {
       this.logger.log(`Sending notice to embedding service via Kafka (topic: ${TOPIC})`);
       await this.kafkaService.sendMessage<CreateNoticeMessageDTO>(TOPIC, message);
 
-      notice.status = NoticeStatus.EMBEDDING;
+      notice.status = NoticeStatus.PROCESSING;
       await this.repository.save(notice);
       
-      this.logger.log(`Notice status updated to EMBEDDING: ${id}`);
+      this.logger.log(`Notice status updated to PROCESSING: ${id}`);
     } catch (error) {
       this.logger.error(`Failed to embed notice ${id}: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to embed notice');
@@ -179,7 +187,7 @@ export class NoticeService {
       }
 
       if (filters.isEmbeded !== undefined) {
-        qb.andWhere('notice.status = :status', { status: NoticeStatus.EMBEDDED });
+        qb.andWhere('notice.status = :status', { status: NoticeStatus.PROCESSED });
       }
 
       const notices = await qb.getMany();

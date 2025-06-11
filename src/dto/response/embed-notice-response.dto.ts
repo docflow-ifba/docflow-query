@@ -3,4 +3,5 @@ export class EmbedNoticeResponseDTO {
     content_md: string;
     clean_md: string;
     tables_md: string[];
+    error?: string;
 }

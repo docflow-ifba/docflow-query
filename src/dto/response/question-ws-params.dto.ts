@@ -1,7 +1,8 @@
 import { Socket } from 'socket.io';
+import { Notice } from 'src/entity/notice.entity';
 
 export class QuestionWSParamsDTO {
-  noticeId: string;
+  notice: Notice;
   prompt: string;
   userId: string;
   socket: Socket;

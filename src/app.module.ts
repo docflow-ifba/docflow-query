@@ -21,6 +21,7 @@ import { AuthService } from './service/auth.service';
 import { UserService } from './service/user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { ConversationGateway } from './gateway/conversation.gateway';
+import { UserController } from './controller/user.controller';
 
 const entities = [User, Organization, Notice, Table, NoticeTable, Conversation,]
 
@@ -56,6 +57,6 @@ const entities = [User, Organization, Notice, Table, NoticeTable, Conversation,]
     JwtStrategy,
     ConversationGateway
   ],
-  controllers: [AuthController, ConversationController, NoticeController, OrganizationController],
+  controllers: [AuthController, ConversationController, NoticeController, OrganizationController, UserController],
 })
 export class AppModule {}

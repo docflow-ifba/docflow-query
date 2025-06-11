@@ -32,7 +32,7 @@ export class UserService {
     }
   }
 
-  async createUser(name: string, email: string, password: string): Promise<User> {
+  async createUser(name: string, email: string, password: string, role: UserRole): Promise<User> {
     try {
       this.logger.log(`Creating new user: ${email}`);
       
@@ -42,8 +42,8 @@ export class UserService {
       const user = this.repository.create({ 
         name, 
         email, 
+        role,
         password: hashedPassword, 
-        role: UserRole.ADMIN // TODO: Make this configurable
       });
       
       const savedUser = await this.repository.save(user);
@@ -94,6 +94,24 @@ export class UserService {
       return user;
     } catch (error) {
       this.logger.error(`Error retrieving user by ID ${id}: ${error.message}`, error.stack);
+      throw error instanceof NotFoundException ? error : new InternalServerErrorException();
+    }
+  }
+
+  async update(id: string, body: { name: string, email: string }): Promise<User> {
+    try {
+      this.logger.log(`Updating user with ID: ${id}`);
+      
+      const user = await this.getById(id);
+      user.name = body.name;
+      user.email = body.email;
+
+      const updatedUser = await this.repository.save(user);
+      this.logger.log(`User updated successfully with ID: ${updatedUser.userId}`);
+      
+      return updatedUser;
+    } catch (error) {
+      this.logger.error(`Error updating user with ID ${id}: ${error.message}`, error.stack);
       throw error instanceof NotFoundException ? error : new InternalServerErrorException();
     }
   }

@@ -12,6 +12,7 @@ import { ConversationService } from '../service/conversation.service';
 import { JwtWsGuard } from 'src/guard/jwt-ws.guard';
 import { Conversation } from 'src/entity/conversation.entity';
 import { JwtService } from '@nestjs/jwt';
+import { NoticeService } from 'src/service/notice.service';
 
 @WebSocketGateway({ cors: true })
 @UseGuards(JwtWsGuard)
@@ -24,6 +25,7 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
   constructor(
     @Inject(forwardRef(() => ConversationService))
     private readonly conversationService: ConversationService,
+    private readonly noticeService: NoticeService,
     private readonly jwtService: JwtService
   ) {}
 
@@ -77,17 +79,18 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
 
       this.logger.log(`Received question from user ${userId} for notice ${noticeId}: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
       
-      await this.conversationService.handleQuestionWebSocket({
-        noticeId,
+      const notice = await this.noticeService.getById(noticeId);
+      const question = await this.conversationService.handleQuestionWebSocket({
+        notice,
         prompt,
         userId,
         socket: client,
       });
       
+      this.server.to(userId).emit(notice.docflowNoticeId, { conversation: question, done: true });
       this.logger.log(`Question processing initiated for user ${userId}`);
     } catch (error) {
       this.logger.error(`Error processing question: ${error.message}`, error.stack);
-      // Notify client about the error
       client.emit('error', { message: 'Failed to process your question. Please try again.' });
     }
   }

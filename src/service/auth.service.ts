@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from './user.service';
 import { User } from 'src/entity/user.entity';
+import { UserRole } from 'src/enum/user-role.enum';
 
 @Injectable()
 export class AuthService {
@@ -44,7 +45,7 @@ export class AuthService {
     }
   }
 
-  async register(name: string, email: string, password: string) {
+  async register(name: string, email: string, password: string, role: UserRole = UserRole.USER) {
     try {
       this.logger.log(`Processing registration request for: ${email}`);
       const existingUser = await this.userService.findByEmail(email);
@@ -54,7 +55,7 @@ export class AuthService {
       }
       
       this.logger.log(`Creating new user account for: ${email}`);
-      const user = await this.userService.createUser(name, email, password);
+      const user = await this.userService.createUser(name, email, password, role);
       this.logger.log(`User registered successfully: ${email}`);
       return this.login(user);
     } catch (error) {
