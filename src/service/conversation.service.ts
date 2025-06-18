@@ -182,4 +182,19 @@ export class ConversationService {
 
     this.logger.warn(`Timeout while waiting for conversationId: ${conversationId}`);
   }
+
+  async clear(noticeId: string, userId: string): Promise<void> {
+    try {
+      this.logger.log(`Clearing conversations for notice: ${noticeId}, user: ${userId}`);
+      
+      const notice = await this.noticeService.getById(noticeId);
+      const user = await this.userService.getById(userId);
+
+      await this.repository.delete({ notice, user });
+      this.logger.log(`Conversations cleared for notice: ${noticeId}, user: ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error clearing conversations: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AskQuestionResponseDTO } from 'src/dto/response/ask-question-response.dto';
 import { ConversationService } from 'src/service/conversation.service';
@@ -40,6 +40,23 @@ export class ConversationController {
       return conversations;
     } catch (error) {
       this.logger.error(`Failed to find conversations: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  @Delete('/clear/:noticeId')
+  @UseGuards(JwtAuthGuard)
+  async clear(
+    @Req() req: Request,
+    @Param('noticeId') noticeId: string,
+  ): Promise<void> {
+    try {
+      const user = req.user as { userId: string };
+      this.logger.log(`Clearing conversations for user: ${user.userId}, noticeId: ${noticeId}`);
+      await this.service.clear(noticeId, user.userId);
+      this.logger.log(`Successfully cleared conversations for noticeId: ${noticeId}`);
+    } catch (error) {
+      this.logger.error(`Failed to clear conversations: ${error.message}`, error.stack);
       throw error;
     }
   }

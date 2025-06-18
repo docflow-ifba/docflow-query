@@ -12,7 +12,7 @@ export class NoticeTable {
   @PrimaryGeneratedColumn('uuid', { name: 'table_id' })
   tableId: string;
 
-  @ManyToOne(() => Notice)
+  @ManyToOne(() => Notice, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'notice_id' })
   notice: Notice;
 

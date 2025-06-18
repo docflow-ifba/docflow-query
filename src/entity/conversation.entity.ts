@@ -24,7 +24,7 @@ export class Conversation {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @ManyToOne(() => Notice)
+  @ManyToOne(() => Notice, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'notice_id' })
   notice: Notice;
 

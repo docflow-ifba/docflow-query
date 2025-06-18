@@ -138,7 +138,10 @@ export class NoticeService {
     try {
       this.logger.log(`Finding notice by ID: ${id}`);
       
-      const notice = await this.repository.findOne({ where: { noticeId: id } });
+      const notice = await this.repository.findOne({ 
+        where: { noticeId: id },
+        relations: ['organization']
+      });
       if (!notice) {
         this.logger.warn(`Notice not found with ID: ${id}`);
         throw new NotFoundException('Notice not found');
