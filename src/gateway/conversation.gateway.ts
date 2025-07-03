@@ -80,7 +80,7 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
       this.logger.log(`Received question from user ${userId} for notice ${noticeId}: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
       
       const notice = await this.noticeService.getById(noticeId);
-      const question = await this.conversationService.handleQuestionWebSocket({
+      const [question, answer] = await this.conversationService.handleQuestionWebSocket({
         notice,
         prompt,
         userId,
@@ -88,6 +88,7 @@ export class ConversationGateway implements OnGatewayInit, OnGatewayConnection, 
       });
       
       this.server.to(userId).emit(notice.docflowNoticeId, { conversation: question, done: true });
+      this.server.to(userId).emit(notice.docflowNoticeId, { conversation: answer, done: false });
       this.logger.log(`Question processing initiated for user ${userId}`);
     } catch (error) {
       this.logger.error(`Error processing question: ${error.message}`, error.stack);

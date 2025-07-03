@@ -6,13 +6,11 @@ import { ConversationController } from './controller/conversation.controller';
 import { NoticeService } from './service/notice.service';
 import { NoticeController } from './controller/notice.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Table } from 'typeorm';
 import { Notice } from './entity/notice.entity';
 import { Organization } from './entity/organization.entity';
 import { User } from './entity/user.entity';
 import { OrganizationService } from './service/organization.service';
 import { OrganizationController } from './controller/organization.controller';
-import { NoticeTable } from './entity/notice-table.entity';
 import { Conversation } from './entity/conversation.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
@@ -23,7 +21,7 @@ import { JwtStrategy } from './strategy/jwt.strategy';
 import { ConversationGateway } from './gateway/conversation.gateway';
 import { UserController } from './controller/user.controller';
 
-const entities = [User, Organization, Notice, Table, NoticeTable, Conversation,]
+const entities = [User, Organization, Notice, Conversation]
 
 @Module({
   imports: [

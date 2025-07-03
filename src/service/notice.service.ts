@@ -15,7 +15,6 @@ import { CreateNoticeMessageDTO } from 'src/dto/request/create-notice-message.dt
 import { NoticeResponseDTO } from 'src/dto/response/notice-response.dto';
 import { EmbedNoticeResponseDTO } from 'src/dto/response/embed-notice-response.dto';
 import { NoticeStatus } from 'src/enum/notice-status.enum';
-import { NoticeTable } from 'src/entity/notice-table.entity';
 
 @Injectable()
 export class NoticeService {
@@ -24,8 +23,6 @@ export class NoticeService {
   constructor(
     @InjectRepository(Notice)
     private readonly repository: Repository<Notice>,
-    @InjectRepository(NoticeTable)
-    private readonly tableRepository: Repository<NoticeTable>,
     private readonly kafkaService: KafkaService,
     private readonly configService: ConfigService,
   ) {}
@@ -40,25 +37,12 @@ export class NoticeService {
         this.logger.error(`Embed error for notice ${payload.docflow_notice_id}: ${payload.error}`);
         notice.status = NoticeStatus.ERROR;
         await this.repository.save(notice);
-        throw new InternalServerErrorException(`Embed error: ${payload.error}`);
+        return;
       }
 
       notice.contentMarkdown = payload.content_md;
-      notice.cleanMarkdown = payload.clean_md;
+      notice.chunks = payload.chunks;
       notice.status = NoticeStatus.PROCESSED;
-
-      if(payload.tables_md && payload.tables_md.length > 0) {
-        this.logger.log(`Processing ${payload.tables_md.length} tables for notice: ${notice.noticeId}`);
-        
-        for (const table of payload.tables_md) {
-          const tableEntity = this.tableRepository.create({
-            content: table,
-            notice,
-          });
-          await this.tableRepository.save(tableEntity);
-        }
-        this.logger.log(`Tables saved successfully for notice: ${notice.noticeId}`);
-      }
 
       await this.repository.save(notice);
       this.logger.log(`Notice updated successfully with embedded content: ${notice.noticeId}`);

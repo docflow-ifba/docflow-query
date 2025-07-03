@@ -25,9 +25,6 @@ export class Notice {
   @Column({ type: 'text', name: 'content_markdown', nullable: true })
   contentMarkdown: string;
 
-  @Column({ type: 'text', name: 'clean_markdown', nullable: true })
-  cleanMarkdown: string;
-
   @Column({ type: 'text', name: 'pdf_base64' })
   pdfBase64: string;
 
@@ -37,6 +34,16 @@ export class Notice {
     name: 'status',
   })
   status: NoticeStatus;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: string[]) => JSON.stringify(value),
+      from: (value: string) => JSON.parse(value),
+    },
+  })
+  chunks?: string[];
 
   @ManyToOne(() => Organization)
   @JoinColumn({ name: 'organization_id' })

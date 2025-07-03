@@ -58,7 +58,7 @@ export class ConversationService {
     }
   }
 
-  async handleQuestionWebSocket(params: QuestionWSParamsDTO): Promise<Conversation> {
+  async handleQuestionWebSocket(params: QuestionWSParamsDTO): Promise<[Conversation, Conversation]> {
     try {
       const { notice, prompt, userId } = params;
       this.logger.log(`Processing question for notice: ${notice.noticeId}, user: ${userId}`);
@@ -88,7 +88,7 @@ export class ConversationService {
         this.logger.error(`Error white waiting for a response: ${error.message}`, error.stack);
       });
 
-      return question;
+      return [question, answerEntity];
     } catch (error) {
       this.logger.error(`Error handling WebSocket question: ${error.message}`, error.stack);
       throw error;
