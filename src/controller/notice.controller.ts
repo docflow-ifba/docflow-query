@@ -53,13 +53,11 @@ export class NoticeController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  async create(@Body() body: CreateNoticeRequestDTO): Promise<Notice> {
+  async create(@Body() body: CreateNoticeRequestDTO): Promise<NoticeResponseDTO> {
     this.logger.log(`Creating notice with title: ${body.title}`);
     try {
-      const notice = await this.noticeService.create(body);
-      this.logger.log(`Notice created successfully with ID: ${notice.noticeId}`);
-      delete notice.pdfBase64;
-      return notice;
+      const { pdfBase64: _pdf, contentMarkdown: _md, chunks: _ch, ...response } = await this.noticeService.create(body);
+      return response as NoticeResponseDTO;
     } catch (error) {
       this.logger.error(`Failed to create notice: ${error.message}`, error.stack);
       throw error;

@@ -56,7 +56,7 @@ export class NoticeService {
     try {
       this.logger.log(`Starting embed process for notice: ${id}`);
       
-      const TOPIC = this.configService.get<string>('KAFKA_EMBED_TOPIC');
+      const TOPIC = this.configService.getOrThrow<string>('KAFKA_EMBED_TOPIC');
       const notice = await this.getById(id);
 
       const message: CreateNoticeMessageDTO = {
@@ -89,7 +89,6 @@ export class NoticeService {
         organization: data.organization,
         docflowNoticeId: DOCFLOW_NOTICE_ID 
       });
-      
       const savedNotice = await this.repository.save(noticeEntity);
       this.logger.log(`Notice created successfully with ID: ${savedNotice.noticeId}`);
       

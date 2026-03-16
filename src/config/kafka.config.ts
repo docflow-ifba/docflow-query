@@ -7,10 +7,10 @@ export function getKafkaConfig(configService: ConfigService): KafkaOptions {
     options: {
       client: {
         clientId: configService.get('KAFKA_CLIENT_ID'),
-        brokers: [configService.get('KAFKA_BROKER')],
+        brokers: [configService.getOrThrow<string>('KAFKA_BROKER')],
       },
       consumer: {
-        groupId: configService.get('KAFKA_GROUP_ID'),
+        groupId: configService.getOrThrow<string>('KAFKA_GROUP_ID'),
       },
     },
   };

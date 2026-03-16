@@ -1,6 +1,12 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, KafkaConfig, Producer, ProducerRecord } from 'kafkajs';
 import { ConfigService } from '@nestjs/config';
+import {
+  KAFKA_MAX_IN_FLIGHT_REQUESTS,
+  KAFKA_MAX_MESSAGE_SIZE,
+  KAFKA_MAX_RETRIES,
+  KAFKA_REQUEST_TIMEOUT_MS,
+} from 'src/constants/app.constants';
 
 @Injectable()
 export class KafkaService implements OnModuleDestroy {
@@ -16,15 +22,15 @@ export class KafkaService implements OnModuleDestroy {
     const kafkaConfig: KafkaConfig = {
       clientId,
       brokers,
-      retry: { retries: 5 },
-      requestTimeout: 30_000,
+      retry: { retries: KAFKA_MAX_RETRIES },
+      requestTimeout: KAFKA_REQUEST_TIMEOUT_MS,
     };
 
     this.logger.log(`Initializing Kafka with client ID: ${clientId}, brokers: ${brokers.join(',')}`);
     this.kafka = new Kafka(kafkaConfig);
     this.producer = this.kafka.producer({
       allowAutoTopicCreation: true,
-      maxInFlightRequests: 5,
+      maxInFlightRequests: KAFKA_MAX_IN_FLIGHT_REQUESTS,
       idempotent: true,
     });
   }
@@ -48,9 +54,9 @@ export class KafkaService implements OnModuleDestroy {
       const message = JSON.stringify(data);
       const size = Buffer.byteLength(message, 'utf-8');
 
-      if (size > 50 * 1024 * 1024) {
-        this.logger.error(`Message size (${size} bytes) exceeds 50MB limit`);
-        throw new Error('Message exceeds the 50MB limit');
+      if (size > KAFKA_MAX_MESSAGE_SIZE) {
+        this.logger.error(`Message size (${size} bytes) exceeds limit of ${KAFKA_MAX_MESSAGE_SIZE} bytes`);
+        throw new Error(`Message exceeds the ${KAFKA_MAX_MESSAGE_SIZE / (1024 * 1024)}MB limit`);
       }
 
       await this.connectIfNeeded();
@@ -59,7 +65,7 @@ export class KafkaService implements OnModuleDestroy {
         topic,
         messages: [{ value: message }],
         acks: -1,
-        timeout: 30_000,
+        timeout: KAFKA_REQUEST_TIMEOUT_MS,
       };
 
       this.logger.log(`Sending message to topic "${topic}" (size: ${(size / 1024).toFixed(2)} KB)`);
