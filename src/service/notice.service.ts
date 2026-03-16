@@ -169,7 +169,7 @@ export class NoticeService {
       }
 
       if (filters.title) {
-        qb.andWhere('notice.title ILIKE :title', { title: `%${filters.title}%` });
+        qb.andWhere('LOWER(notice.title) LIKE LOWER(:title)', { title: `%${filters.title}%` });
       }
 
       if (filters.isEmbeded !== undefined) {
